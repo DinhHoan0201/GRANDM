@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from "react";
-import "firebase/database";
-import "./App.css";
-import "firebase/firestore";
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getDatabase, ref, push, onValue } from "firebase/database";
-
-const apiKey = "95c77b4ffbd4a5cc35c3b79d2b9aa4fb";
-const baseUrl = "https://api.themoviedb.org/3/movie/top_rated";
-const imageSize = "w500";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDocs,
+  collection,
+  deleteDoc,
+} from "firebase/firestore";
+import React, { useState, useEffect } from "react";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBs-zwZXTUkrKxDcjDe24gAH-gnEm66-ok",
@@ -21,92 +20,81 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const database = getDatabase(app);
-
-type MovieProps = {
-  adult: boolean;
-  id: number;
-  title: string;
-  overview: string;
-  backdrop_path: string;
-  release_date: string;
-  vote_average: number;
-  vote_count: number;
-};
+const db = getFirestore(app);
 
 function App() {
-  const [data, setData] = useState<MovieProps[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [moviesPerPage, setMoviesPerPage] = useState(10);
+  const [movieTitle, setMovieTitle] = useState("");
+  const createMovie = async () => {
+    try {
+      await setDoc(doc(db, "movies", movieTitle), { title: movieTitle });
+      console.log("Movie successfully added!");
+      setMovieTitle("");
+      fetchMovies();
+    } catch (error) {
+      console.error("Error adding movie: ", error);
+    }
+  };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(
-          `${baseUrl}?api_key=${apiKey}&page=${currentPage}`
-        );
-        const jsonData = await response.json();
-
-        const databaseRef = ref(database, "movies");
-        push(databaseRef, jsonData.results);
-
-        setData((prevData) => [...prevData, ...jsonData.results]);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    };
-
-    fetchData();
-  }, [currentPage]);
-
-  useEffect(() => {
-    const fetchDataFromFirebase = () => {
-      const databaseRef = ref(database, "movies");
-      onValue(databaseRef, (snapshot) => {
-        const firebaseData = snapshot.val();
-        if (firebaseData) {
-          const moviesFromFirebase = Object.values(
-            firebaseData
-          ).flat() as MovieProps[];
-          setData(moviesFromFirebase);
-        }
+  const [movies, setMovies] = useState<string[]>([]);
+  const fetchMovies = async () => {
+    try {
+      const getData = await getDocs(collection(db, "movies"));
+      const movieList: any[] | ((prevState: string[]) => string[]) = [];
+      getData.forEach((doc) => {
+        movieList.push(doc.data().title);
       });
-    };
+      setMovies(movieList);
+    } catch (error) {
+      console.error("Error fetching movies: ", error);
+    }
+  };
 
-    fetchDataFromFirebase();
+  const deleteMovie = async (movieTitle: string) => {
+   
+    try {
+       const title = doc(db, "movies", movieTitle);
+      await deleteDoc(title);
+      console.log("Movie successfully deleted!");
+      fetchMovies();
+    } catch (error) {
+      console.error("Error deleting movie: ", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchMovies();
   }, []);
 
-  const loadMore = () => {
-    setCurrentPage((prevPage) => prevPage + 1);
-  };
-
-  const showMoreMovies = () => {
-    setMoviesPerPage((prevCount) => prevCount + 10);
-  };
-
   return (
-    <div className="App">
-      <h1 className="title">Movies List</h1>
-      <div className="listFilm">
-        {data.slice(0, moviesPerPage).map((movie) => (
-          <div key={movie.id}>
-            <h2>{movie.title}</h2>
-            <img
-              src={`https://image.tmdb.org/t/p/${imageSize}${movie.backdrop_path}`}
-              alt={movie.title}
-            />
-            <h4>{movie.release_date}</h4>
-            <p>{movie.adult ? "Dưới 18 tuổi " : "Trên 18 tuổi "}</p>
-            <p>{movie.vote_average}</p>
-            <p>{movie.vote_count}</p>
-            <p>{movie.overview}</p>
-          </div>
+    <div>
+      <h1>Add Movie Title</h1>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          createMovie();
+        }}
+      >
+        <label>
+          Movie Title:
+          <input
+            type="text"
+            value={movieTitle}
+            onChange={(e) => setMovieTitle(e.target.value)}
+          />
+        </label>
+        <br />
+        <button type="submit">Add Movie</button>
+      </form>
+
+      <h2>List of Movies</h2>
+      <ul>
+        {movies.map((movie, index) => (
+          <li key={index}>
+            {movie}
+            <button onClick={() => deleteMovie(movie)}>Delete</button>
+          </li>
         ))}
-      </div>
-      {data.length > moviesPerPage && (
-        <button onClick={showMoreMovies}>Read More</button>
-      )}
+      </ul>
     </div>
   );
 }
