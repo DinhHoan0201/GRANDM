@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Box, Container, Stack, Typography } from "@mui/material";
+import { Box, Button, Container, Stack, Typography } from "@mui/material";
 import Heart from "./heart";
 import { initializeApp } from "firebase/app";
 import {
@@ -14,8 +14,6 @@ import {
   collection,
   getDocs,
 } from "firebase/firestore";
-
-// Khởi tạo Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBs-zwZXTUkrKxDcjDe24gAH-gnEm66-ok",
   authDomain: "filmdb-ba825.firebaseapp.com",
@@ -41,20 +39,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchMovieData = async (currentPage: number) => {
       try {
-        // Fetch favorites from Local Storage
         const storedFavorites = localStorage.getItem("favorites");
         console.log("Stored Favorites:", storedFavorites);
 
-        // Kiểm tra storedFavorites có giá trị không
         if (storedFavorites) {
           const parsedFavorites = JSON.parse(storedFavorites);
           setFavorites(parsedFavorites || []);
 
-          // Fetch favorites from Firestore if Local Storage is empty
           if (!parsedFavorites || parsedFavorites.length === 0) {
             const favoritesCollection = collection(db, "favoriteMovies");
 
-            // Sử dụng `await` trong hàm được đánh dấu là `async`
             const favoritesSnapshot = await getDocs(favoritesCollection);
             const favoritesList = favoritesSnapshot.docs.map((doc) =>
               parseInt(doc.id)
@@ -67,7 +61,6 @@ const App: React.FC = () => {
         console.error("Error parsing favorites from Local Storage:", error);
       }
 
-      // Fetch movie data
       const response = await axios.get(
         "https://api.themoviedb.org/3/movie/top_rated",
         {
@@ -127,54 +120,57 @@ const App: React.FC = () => {
   };
 
   return (
-    <div>
-      <div>
-        <Container>
-          <Stack direction="column" flexWrap="wrap" textAlign="center">
-            <Typography variant="h2">List Film</Typography>
-            {movieData.map((movie: any, index: number) => {
-              const starsCount: number = Math.min(
-                Math.round(movie.vote_average / 2)
-              );
+    <>
+      <Container>
+        <Stack textAlign="center">
+          <Typography variant="h2" sx={{ color: "red" }}>
+            MOVIES LIST
+          </Typography>
+          {movieData.map((movie: any, index: number) => {
+            const starsCount: number = Math.min(
+              Math.round(movie.vote_average / 2)
+            );
 
-              return (
-                <Box
-                  key={movie.id}
-                  style={{
-                    width: "200px",
-                    margin: "10px",
-                    display: "inline-block",
-                  }}
-                >
-                  <img
-                    src={`https://image.tmdb.org/t/p/w500${movie.backdrop_path}`}
-                    alt={movie.title}
-                    width={1000}
-                    height={500}
-                  />
-                  <Box>
-                    <b>{movie.title}</b>
-                  </Box>
-                  <Box>
-                    {[...Array(starsCount)].map((_, starIndex) => (
-                      <span key={starIndex}>⭐</span>
-                    ))}
-                    <span>{movie.vote_average}</span>
-                  </Box>
-                  <Heart
-                    isFavorite={favorites.includes(movie.id)}
-                    onClick={() => toggleFavorite(index)}
-                  />
+            return (
+              <Box key={movie.id}>
+                <img
+                  src={`https://image.tmdb.org/t/p/w500${movie.backdrop_path}`}
+                  alt={movie.title}
+                  width={1000}
+                  height={500}
+                />
+                <Box>
+                  <Typography variant="h5">{movie.title}</Typography>
+                  <Typography> Relase Date : {movie.release_date}</Typography>
+                  <Typography>
+                    Age : {movie.adult ? "Dưới 18" : "Trên 18"}
+                  </Typography>
                 </Box>
-              );
-            })}
-          </Stack>
-        </Container>
-        <Box textAlign={"center"}>
-          <button onClick={loadMoreData}>Load more</button>
-        </Box>
-      </div>
-    </div>
+                <Stack direction="row" justifyContent="center">
+                  <Stack direction="row" alignItems="center">
+                    {[...Array(starsCount)].map((_, starIndex) => (
+                      <Stack direction="column" key={starIndex}>
+                        <Box>⭐</Box>
+                      </Stack>
+                    ))}
+                    <Typography>{movie.vote_average}</Typography>
+                    <Box sx={{ pl: "10px" }}>
+                      <Heart
+                        isFavorite={favorites.includes(movie.id)}
+                        onClick={() => toggleFavorite(index)}
+                      />
+                    </Box>
+                  </Stack>
+                </Stack>
+              </Box>
+            );
+          })}
+        </Stack>
+      </Container>
+      <Box textAlign={"center"}>
+        <Button onClick={loadMoreData}>Load more</Button>
+      </Box>
+    </>
   );
 };
 
